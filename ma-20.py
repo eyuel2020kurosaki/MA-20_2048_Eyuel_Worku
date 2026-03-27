@@ -1,17 +1,14 @@
 # Auteur : Eyuel Worku
 # Date : 17.03.2026
 # Module : MA-20
-# PROJET:  2048 
-
-
-
+# PROJET:  2048
 
 import tkinter as tk
 import random
 
 numbers = [
     [4, 0, 0, 0],
-    [1024   , 0, 0, 0],
+    [1024, 0, 0, 0],
     [1024, 0, 0, 0],
     [2, 2, 4, 0]
 ]
@@ -25,233 +22,210 @@ tile_colors = {
 
 Tuiles_GAP = 4
 
+# Garde la référence du label de message pour pouvoir le supprimer au rejouer
+label_fin_ref = None
+
+# Score actuel et meilleur score
+score = 0
+meilleur_score = 0
 
 # ----------------------------------------------------------
-# pack 4 des tuiles (Correction pour éviter les doubles fusions)
+# pack 4 des tuiles — retourne aussi les points gagnés
 # ----------------------------------------------------------
 def pack(a, b, c, d):
-
-    # --- 1) Décaler à gauche tant qu'il y a des zéros au début ---
-    # Objectif : "compacter" les nombres en poussant les zéros à droite.
-    if a == 0:
-        a, b, c, d = b, c, d, 0  # glisse tout à gauche
+    points = 0
 
     if a == 0:
-        a, b, c, d = b, c, d, 0  # répéter si encore un zéro en tête
-
+        a, b, c, d = b, c, d, 0
     if a == 0:
-        a, b, c, d = b, c, d, 0  # répéter une troisième fois (max 3 déplacements)
-
-    # Si la deuxième case est encore vide, on continue de compacter
+        a, b, c, d = b, c, d, 0
+    if a == 0:
+        a, b, c, d = b, c, d, 0
     if b == 0:
         b, c, d = c, d, 0
-
     if b == 0:
-        b, c, d = c, d, 0  # une seconde fois au cas où
-
-    # Dernier petit décalage si le troisième est vide
+        b, c, d = c, d, 0
     if c == 0:
         c, d = d, 0
 
-    # --- 2) Fusion des tuiles égales ---
-    # Règle : on fusionne de gauche à droite. Une fusion crée un zéro à droite.
     if a == b:
-        a, b, c, d = 2 * a, c, d, 0  # fusion a-b puis on tasse à gauche
-
+        a = 2 * a
+        points += a
+        b, c, d = c, d, 0
     if b == c:
-        b, c, d = 2 * b, d, 0        # fusion b-c puis on tasse
-
+        b = 2 * b
+        points += b
+        c, d = d, 0
     if c == d:
-        c, d = 2 * c, 0              # fusion c-d
+        c = 2 * c
+        points += c
+        d = 0
 
-    return a, b, c, d
+    return a, b, c, d, points
 
 # ----------------------------------------------------------
 # APPARITION D'UNE TUILE ALEATOIRE
 # ----------------------------------------------------------
 def spawn_tile():
-    # On crée une liste vide qui va stocker les cases vides
     cases_vides = []
-
-    # On parcourt toute la grille pour trouver les cases qui valent 0
     for row in range(4):
         for col in range(4):
             if numbers[row][col] == 0:
-                # On ajoute la position de la case vide dans la liste
                 cases_vides.append((row, col))
-
-    # Si la liste est vide, la grille est pleine, on ne fait rien
     if len(cases_vides) == 0:
         return
-
-    # On choisit une case vide au hasard dans la liste
     case_choisie = cases_vides[random.randint(0, len(cases_vides) - 1)]
-
-    # On récupère la ligne et la colonne de la case choisie
     row = case_choisie[0]
     col = case_choisie[1]
-
-    # 80% de chances d'avoir un 2, 20% de chances d'avoir un 4
     if random.randint(1, 10) <= 8:
         numbers[row][col] = 2
     else:
         numbers[row][col] = 4
 
 # ----------------------------------------------------------
-# VICTOIRE : vérifie si une tuile vaut 2048
+# VICTOIRE / DEFAITE
 # ----------------------------------------------------------
 def check_victoire():
-    # On parcourt toute la grille
     for row in range(4):
         for col in range(4):
-            # Si on trouve une tuile qui vaut 2048, le joueur a gagné
             if numbers[row][col] == 2048:
                 return True
-    # Sinon on retourne False
     return False
 
-# ----------------------------------------------------------
-# DEFAITE : vérifie si la grille est pleine et aucun mouvement possible
-# ----------------------------------------------------------
 def check_defaite():
-    # On vérifie d'abord s'il reste des cases vides
     for row in range(4):
         for col in range(4):
             if numbers[row][col] == 0:
-                # Il reste une case vide donc ce n'est pas une défaite
                 return False
-
-    # On vérifie si deux cases voisines sont égales horizontalement
-    # Si oui, une fusion est encore possible donc ce n'est pas une défaite
     for row in range(4):
-        if numbers[row][0] == numbers[row][1]:
-            return False
-        if numbers[row][1] == numbers[row][2]:
-            return False
-        if numbers[row][2] == numbers[row][3]:
-            return False
-
-    # On vérifie si deux cases voisines sont égales verticalement
+        if numbers[row][0] == numbers[row][1]: return False
+        if numbers[row][1] == numbers[row][2]: return False
+        if numbers[row][2] == numbers[row][3]: return False
     for col in range(4):
-        if numbers[0][col] == numbers[1][col]:
-            return False
-        if numbers[1][col] == numbers[2][col]:
-            return False
-        if numbers[2][col] == numbers[3][col]:
-            return False
-
-    # Si on arrive ici : grille pleine et aucune fusion possible → défaite
+        if numbers[0][col] == numbers[1][col]: return False
+        if numbers[1][col] == numbers[2][col]: return False
+        if numbers[2][col] == numbers[3][col]: return False
     return True
 
 # ----------------------------------------------------------
 # AFFICHE UN MESSAGE DE FIN DE PARTIE
 # ----------------------------------------------------------
-def afficher_message(texte):
-    # On affiche le texte directement sur la fenêtre tkinter
-    label_fin = tk.Label(win, text=texte, font=("Arial", 24, "bold"))
-    label_fin.pack(pady=10)
-
-    # On bloque les touches du clavier pour stopper la partie
-    win.unbind('<Key>')
+def afficher_message(texte, game_over=False):
+    global label_fin_ref
+    if label_fin_ref is not None:
+        label_fin_ref.destroy()
+    label_fin_ref = tk.Label(
+        win, text=texte,
+        font=("Arial", 20, "bold"),
+        bg="#EBF5FF", fg="#333"
+    )
+    label_fin_ref.pack(pady=5)
+    if game_over:
+        win.unbind('<Key>')
 
 # ----------------------------------------------------------
-# les moves des tuiles
+# MET A JOUR LE SCORE ET LE MEILLEUR SCORE
+# ----------------------------------------------------------
+def ajouter_score(points):
+    global score, meilleur_score
+    score += points
+    if score > meilleur_score:
+        meilleur_score = score
+    label_score.configure(text=f"Score\n{score}")
+    label_best.configure(text=f"Meilleur\n{meilleur_score}")
+
+# ----------------------------------------------------------
+# REJOUER
+# ----------------------------------------------------------
+def rejouer():
+    global label_fin_ref, score
+    for row in range(4):
+        for col in range(4):
+            numbers[row][col] = 0
+    spawn_tile()
+    spawn_tile()
+    if label_fin_ref is not None:
+        label_fin_ref.destroy()
+        label_fin_ref = None
+    score = 0
+    label_score.configure(text=f"Score\n{score}")
+    win.bind('<Key>', press)
+    display_grid()
+
+# ----------------------------------------------------------
+# MOUVEMENTS
 # ----------------------------------------------------------
 def left():
+    total_points = 0
     for li in range(4):
-        #print("test : " ,pack(numbers[li]))
-
-        a = numbers[li][0] 
-        b = numbers[li][1]
-        c = numbers[li][2]
-        d = numbers[li][3]
-
-        a2, b2, c2, d2 = pack(a, b, c, d)
-
-        numbers[li][0] = a2
-        numbers[li][1] = b2
-        numbers[li][2] = c2
-        numbers[li][3] = d2
-
-        #numbers[li][0], numbers[li][1], numbers[li][2], numbers[li][3] = pack(*numbers[li])
-
-    # On fait apparaître une nouvelle tuile
+        a, b, c, d, pts = pack(
+            numbers[li][0], numbers[li][1],
+            numbers[li][2], numbers[li][3]
+        )
+        numbers[li][0], numbers[li][1] = a, b
+        numbers[li][2], numbers[li][3] = c, d
+        total_points += pts
+    ajouter_score(total_points)
     spawn_tile()
-    # On met à jour l'affichage
     display_grid()
-
-    # On vérifie si le joueur a gagné ou perdu
-    if check_victoire() == True:
-        afficher_message("Tu as gagné !")
-    elif check_defaite() == True:
-        afficher_message("Game Over !")
+    if check_victoire():
+        afficher_message("🎉 Tu as gagné ! Continue !", game_over=False)
+    elif check_defaite():
+        afficher_message("💀 Game Over !", game_over=True)
 
 def right():
+    total_points = 0
     for li in range(4):
-        print(numbers[li])
-        a = numbers[li][3]
-        b = numbers[li][2]
-        c = numbers[li][1]
-        d = numbers[li][0]
-
-
-        a2, b2, c2, d2 = pack(a,b,c,d)
-        print(a2,b2,c2,d2)
-        numbers[li][3] = a2
-        numbers[li][2] = b2
-        numbers[li][1] = c2
-        numbers[li][0] = d2
-
-    # On fait apparaître une nouvelle tuile
+        a, b, c, d, pts = pack(
+            numbers[li][3], numbers[li][2],
+            numbers[li][1], numbers[li][0]
+        )
+        numbers[li][3], numbers[li][2] = a, b
+        numbers[li][1], numbers[li][0] = c, d
+        total_points += pts
+    ajouter_score(total_points)
     spawn_tile()
-    # On met à jour l'affichage
     display_grid()
-
-# ---- mouvement de la VICTOIRE/ DE LA DEFAITE ----
-
-    # On vérifie si le joueur a gagné ou perdu
-    if check_victoire() == True:
-        afficher_message("Tu as gagné 🔥🔥🔥 !")
-    elif check_defaite() == True:
-        afficher_message("Game Over 🙂‍↕️🙂‍↕️💀💀!")
+    if check_victoire():
+        afficher_message("🎉 Tu as gagné ! Continue !", game_over=False)
+    elif check_defaite():
+        afficher_message("💀 Game Over !", game_over=True)
 
 def up():
+    total_points = 0
     for col in range(4):
-        a, b, c, d = numbers[0][col], numbers[1][col], numbers[2][col], numbers[3][col]
-        # On réinjecte le résultat dans la grille
-        numbers[0][col], numbers[1][col], numbers[2][col], numbers[3][col] = pack(a, b, c, d)
-
-    # On fait apparaître une nouvelle tuile
+        a, b, c, d, pts = pack(
+            numbers[0][col], numbers[1][col],
+            numbers[2][col], numbers[3][col]
+        )
+        numbers[0][col], numbers[1][col] = a, b
+        numbers[2][col], numbers[3][col] = c, d
+        total_points += pts
+    ajouter_score(total_points)
     spawn_tile()
-    # On met à jour l'affichage
     display_grid()
-
-# ---- mouvement de la VICTOIRE/ DE LA DEFAITE ----
-
-    # On vérifie si le joueur a gagné ou perdu
-    if check_victoire() == True:
-        afficher_message("Tu as gagné !")
-    elif check_defaite() == True:
-        afficher_message("Game Over !")
+    if check_victoire():
+        afficher_message("🎉 Tu as gagné ! Continue !", game_over=False)
+    elif check_defaite():
+        afficher_message("💀 Game Over !", game_over=True)
 
 def down():
+    total_points = 0
     for col in range(4):
-        a, b, c, d = numbers[3][col], numbers[2][col], numbers[1][col], numbers[0][col]
-        # On réinjecte le résultat dans la grille
-        numbers[3][col], numbers[2][col], numbers[1][col], numbers[0][col] = pack(a, b, c, d)
-
-    # On fait apparaître une nouvelle tuile
+        a, b, c, d, pts = pack(
+            numbers[3][col], numbers[2][col],
+            numbers[1][col], numbers[0][col]
+        )
+        numbers[3][col], numbers[2][col] = a, b
+        numbers[1][col], numbers[0][col] = c, d
+        total_points += pts
+    ajouter_score(total_points)
     spawn_tile()
-    # On met à jour l'affichage
     display_grid()
-
-# ---- mouvement de la VICTOIRE/ DE LA DEFAITE ----
-
-    # On vérifie si le joueur a gagné ou perdu
-    if check_victoire() == True:
-        afficher_message("Tu as gagné !")
-    elif check_defaite() == True:
-        afficher_message("Game Over !")
+    if check_victoire():
+        afficher_message(" Tu as gagné ! Continue !", game_over=False)
+    elif check_defaite():
+        afficher_message(" Game Over !", game_over=True)
 
 # ----------------------------------------------------------
 # GESTION DU CLAVIER
@@ -276,10 +250,42 @@ def display_grid():
                 fg="#111" if 0 < value <= 4 else "#FFF"
             )
 
+# ---- Fenetre principale ----
 win = tk.Tk()
 win.title("2048")
 win.configure(background="#EBF5FF")
 
+# ---- Barre titre + scores ----
+barre_score = tk.Frame(win, bg="#EBF5FF")
+barre_score.pack(padx=10, pady=(10, 0), fill="x")
+
+label_titre = tk.Label(
+    barre_score, text="2048",
+    font=("Arial", 32, "bold"),
+    bg="#EBF5FF", fg="#707DA4"
+)
+label_titre.pack(side="left", padx=10)
+
+cadre_scores = tk.Frame(barre_score, bg="#EBF5FF")
+cadre_scores.pack(side="right", padx=10)
+
+label_score = tk.Label(
+    cadre_scores, text=f"Score\n{score}",
+    font=("Arial", 13, "bold"),
+    bg="#707DA4", fg="white",
+    width=8, pady=6
+)
+label_score.pack(side="left", padx=4)
+
+label_best = tk.Label(
+    cadre_scores, text=f"Meilleur\n{meilleur_score}",
+    font=("Arial", 13, "bold"),
+    bg="#F7C59F", fg="white",
+    width=8, pady=6
+)
+label_best.pack(side="left", padx=4)
+
+# ---- Grille ----
 board = tk.Frame(win, bg="#C0BEBE", padx=Tuiles_GAP, pady=Tuiles_GAP)
 board.pack(padx=10, pady=10)
 
@@ -292,10 +298,16 @@ for row in range(4):
         line.append(label)
     labels.append(line)
 
-# Liaison des touches
+# ---- Bouton Rejouer ----
+btn_rejouer = tk.Button(
+    win, text=" Rejouer", font=("Arial", 14, "bold"),
+    bg="#707DA4", fg="white", relief="flat",
+    padx=10, pady=5, cursor="hand2",
+    command=rejouer
+)
+btn_rejouer.pack(pady=8)
+
 win.bind('<Key>', press)
 
 display_grid()
-
-
 win.mainloop()
